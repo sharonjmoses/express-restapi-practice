@@ -1,8 +1,9 @@
 import 'dotenv/config';
-import { v4 as uuidv4 } from 'uuid';
 import cors from 'cors';
 import express from 'express';
-import models from './models';
+
+import models, { sequelize } from './models';
+import routes from './routes';
 
 const app = express();
 
@@ -16,53 +17,17 @@ app.use((req, res, next) => {
     models,
     me: models.users[1],
   };
-
   next();
 });
 
-app.get('/session', (req, res) => {
-  return res.send(req.context.models.users[req.context.me.id]);
-});
+app.use('/session', routes.session);
+app.use('/users', routes.user);
+app.use('/messages', routes.message);
 
-app.get('/users', (req, res) => {
-  return res.send(Object.values(req.context.models.users));
-});
+const eraseDatabaseOnSync = true;
 
-app.get('/users/:userId', (req, res) => {
-  return res.send(req.context.models.users[req.params.userId]);
-});
-
-app.get('/messages', (req, res) => {
-  return res.send(Object.values(req.context.models.messages));
-});
-
-app.get('/messages/:messageId', (req, res) => {
-  return res.send(req.context.models.messages[req.params.messageId]);
-});
-
-app.post('/messages', (req, res) => {
-  const id = uuidv4();
-  const message = {
-    id,
-    text: req.body.text,
-    userId: req.context.me.id,
-  };
-
-  req.context.models.messages[id] = message;
-
-  return res.send(message);
-});
-
-app.delete('/messages/:messageId', (req, res) => {
-  const {
-    [req.params.messageId]: message,
-    ...otherMessages
-  } = req.context.models.messages;
-
-  req.context.models.messages = otherMessages;
-  return res.send(message);
-});
-
-app.listen(process.env.PORT, () => {
-  console.log(`App running on port: ${process.env.PORT}!`);
+sequelize.sync({ force: eraseDatabaseOnSync }).then(async () => {
+  app.listen(process.env.PORT, () =>
+    console.log(`🚀 App listening on port ${process.env.PORT}!`)
+  );
 });
